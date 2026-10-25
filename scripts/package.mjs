@@ -1,0 +1,13 @@
+import { readFile, mkdir, stat, rm } from 'node:fs/promises';
+import { execFileSync } from 'node:child_process';
+import { resolve } from 'node:path';
+const manifest = JSON.parse(await readFile('dist/manifest.json','utf8'));
+const files = [manifest.action.default_popup, ...manifest.content_scripts.flatMap(item=>item.js), ...Object.values(manifest.icons)];
+for (const file of files) await stat(resolve('dist',file));
+await mkdir('release',{recursive:true});
+const target=resolve('release',`threads-lang-mapper-${manifest.version}-chrome-web-store.zip`);
+await rm(target,{force:true});
+execFileSync('zip',['-qr',target,'.'],{cwd:resolve('dist')});
+const entries=execFileSync('unzip',['-Z1',target],{encoding:'utf8'}).trim().split('\n');
+if (!entries.includes('manifest.json') || entries.some(file=>file.startsWith('dist/'))) throw Error('manifest.json must be at ZIP root');
+console.log(target);

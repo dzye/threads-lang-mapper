@@ -1,0 +1,54 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
+import {build} from 'esbuild';
+import {JSDOM} from 'jsdom';
+import {allSourceLanguages,settingsFrom,invertLanguages} from '../src/shared.js';
+import {createEngine} from '../src/engine.js';
+
+test('旧设置迁移默认全选，空选择保留，反选互补',()=>{
+  assert.deepEqual(settingsFrom({target:'zh'}).translateLanguages,allSourceLanguages);
+  assert.deepEqual(settingsFrom({translateLanguages:[]}).translateLanguages,[]);
+  assert.deepEqual(invertLanguages(allSourceLanguages),[]);
+  assert.deepEqual(invertLanguages([]),allSourceLanguages);
+  assert.deepEqual(invertLanguages(invertLanguages(['en','ja'])),['en','ja']);
+});
+test('来源语言过滤同时作用于繁简转换与外语模型',async()=>{
+  let modelCalls=0;
+  globalThis.Translator={availability:async()=> 'available',create:async()=>({translate:async()=>{modelCalls++;return '你好';}})};
+  globalThis.chrome={i18n:{detectLanguage:async()=>({isReliable:true,languages:[{language:'en',percentage:100}]})}};
+  const engine=createEngine(()=>{},()=>{});
+  assert.equal(await engine.translate('這是繁體中文','zh',true,['en']),'這是繁體中文');
+  assert.equal(await engine.translate('這是繁體中文','zh',true,['zh-Hant']),'这是繁体中文');
+  assert.equal(await engine.translate('Hello everyone this is English','zh',true,['ja']),'Hello everyone this is English');
+  assert.equal(await engine.translate('こんにちは','zh',true,['en']),'こんにちは');
+  assert.equal(await engine.translate('안녕하세요','zh',true,['en']),'안녕하세요');
+  assert.equal(modelCalls,0);
+  assert.equal(await engine.translate('Hello everyone this is English','zh',true,['en']),'你好');
+  assert.equal(modelCalls,1);
+  assert.equal(await engine.translate('Hello everyone this is English','zh',true,[]),'Hello everyone this is English');
+  delete globalThis.Translator;
+});
+test('弹窗默认全选、反选、单选与全选自动保存',async()=>{
+  const html=await readFile('src/popup.html','utf8');
+  const bundle=await build({entryPoints:['src/popup.js'],bundle:true,write:false,format:'esm'});
+  const dom=new JSDOM(html,{runScripts:'outside-only',url:'https://test.example/'});
+  const {window}=dom;
+  const saved=[];
+  window.chrome={storage:{sync:{get:async()=>({}),set:async value=>saved.push(structuredClone(value))}},tabs:{query:async()=>[{id:1}],sendMessage:async()=>({count:0})}};
+  await window.eval(`(async()=>{${bundle.outputFiles[0].text}})()`);
+  const selected=()=>[...window.document.querySelectorAll('#source-languages input:checked')].map(i=>i.value);
+  assert.equal(selected().length,allSourceLanguages.length);
+  window.document.querySelector('#invert-selection').click();
+  assert.deepEqual(selected(),[]);
+  window.document.querySelector('#source-languages input[value="en"]').click();
+  assert.deepEqual(selected(),['en']);
+  window.document.querySelector('#invert-selection').click();
+  assert.equal(selected().length,allSourceLanguages.length-1);
+  assert.ok(!selected().includes('en'));
+  window.document.querySelector('#select-all').click();
+  assert.equal(selected().length,allSourceLanguages.length);
+  assert.deepEqual(saved.at(-1).settings.translateLanguages,allSourceLanguages);
+  await new Promise(resolve=>setImmediate(resolve));
+  dom.window.close();
+});

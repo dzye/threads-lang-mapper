@@ -1,0 +1,11 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Threads 中文阅读</title><link rel="stylesheet" href="popup.css"></head>
+<body><main><header><img class="brand-mark" src="assets/brand/icon-128.png" width="48" height="48" alt="Threads 中文阅读"><span class="edition">THREADS / READER<br>语言不再是距离</span><span class="dot"></span></header>
+<section class="setting"><div><label for="enabled">自动翻译</label><p>进入 Threads 后开始工作</p></div><input id="enabled" type="checkbox" role="switch"></section>
+<section class="target"><label for="target">我想阅读的语言 <span>TRANSLATE TO</span></label><select id="target"></select></section>
+<section class="language-settings" aria-labelledby="language-title"><div class="language-heading"><h2 id="language-title">需要翻译的语言</h2><span id="language-count"></span></div><p class="language-help">勾选的来源语言会自动翻译，未勾选的保留原文。</p><div class="language-actions"><button type="button" id="select-all">全选</button><button type="button" id="invert-selection">反选</button></div><div id="source-languages" class="language-list" role="group" aria-label="需要翻译的来源语言"></div></section>
+<section class="setting"><div><label for="bilingual">保留原文</label><p>译文显示在原文下方，方便对照</p></div><input id="bilingual" type="checkbox" role="switch"></section>
+<section class="setting"><div><label for="foreign">同时翻译其他语言</label><p>使用 Chrome 内置模型，无需 API Key</p></div><input id="foreign" type="checkbox" role="switch"></section>
+
+<div class="status" role="status" id="status">正在连接当前页面…</div><button id="rescan">重新扫描当前页面 <span>↗</span></button><footer><span>本地处理 / 不上传帖文</span><span id="saved">设置自动保存</span></footer>
+<details><summary>使用说明与限制</summary><p>默认自动将繁体中文转为简体中文。滚动加载的帖文也会处理。外语翻译依赖桌面 Chrome Translator API；首次使用某种语言时，点击 Threads 页面右下角的“启用”按钮下载模型。</p><p>只处理文字帖文与回复，不翻译图片、视频、编辑框和私信。语言识别可能误判短句或混合语言。Threads 页面结构更新后可能需要适配。关闭“自动翻译”会恢复原文。</p></details></main><script type="module" src="popup.js"></script></body></html>
