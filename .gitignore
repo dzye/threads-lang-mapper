@@ -7,3 +7,5 @@ release/
 .env
 .env.*
 !.env.example
+/store/demo*
+/store/popup-demo.html
