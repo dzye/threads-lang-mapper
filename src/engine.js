@@ -35,7 +35,7 @@ export function createEngine(onRequired, onProgress) {
   let detectorPromise;
   function prepareDetector() {
     if (!detectorPromise) {
-      detectorPromise = globalThis.LanguageDetector.create({monitor(m) { m.addEventListener('downloadprogress', e => onProgress(`正在下载语言识别模型：${Math.round(e.loaded * 100)}%`)); }});
+      detectorPromise = globalThis.LanguageDetector.create({monitor(m) { m.addEventListener('downloadprogress', e => onProgress(`正在下载语言识别模型：${Math.round(e.loaded * 100)}%`, e.loaded >= 1)); }});
       detectorPromise.catch(() => { detectorPromise = undefined; });
     }
     return detectorPromise;
@@ -44,7 +44,7 @@ export function createEngine(onRequired, onProgress) {
     if (source === 'auto') return prepareDetector();
     const key = `${source}:${target}`;
     if (sessions.has(key)) return sessions.get(key);
-    const promise = globalThis.Translator.create({ sourceLanguage: source, targetLanguage: target, monitor(m) { m.addEventListener('downloadprogress', e => onProgress(`正在下载 ${source} 语言模型：${Math.round(e.loaded * 100)}%`)); } });
+    const promise = globalThis.Translator.create({ sourceLanguage: source, targetLanguage: target, monitor(m) { m.addEventListener('downloadprogress', e => onProgress(`正在下载 ${source} 语言模型：${Math.round(e.loaded * 100)}%`, e.loaded >= 1)); } });
     sessions.set(key, promise);
     promise.catch(() => sessions.delete(key));
     return promise;

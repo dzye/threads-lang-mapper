@@ -60,3 +60,41 @@ test('提取正文排除网站翻译按钮，保留链接文字', () => {
   const {window} = new JSDOM('<div id="text">Hello <a href="https://example.com">link</a><button>翻译</button></div>');
   assert.equal(sourceText(window.document.querySelector('#text')), 'Hello link');
 });
+
+test('下载提示可关闭且不被进度重新打开，100% 自动隐藏并继续翻译', async () => {
+  const bundle = await build({entryPoints:['src/content.js'],bundle:true,write:false,format:'iife'});
+  for (const manuallyClose of [false, true]) {
+    const dom = new JSDOM('<body><article><div dir="auto">こんにちは世界</div></article></body>', {runScripts:'outside-only', url:'https://www.threads.com/'});
+    const {window} = dom;
+    let controls, progress, finish;
+    const attach = window.Element.prototype.attachShadow;
+    window.Element.prototype.attachShadow = function(options) { controls = attach.call(this, options); return controls; };
+    window.chrome = {storage:{sync:{get:async()=>({settings:{}})},onChanged:{addListener:()=>{}}},runtime:{onMessage:{addListener:()=>{}}}};
+    window.Translator = {
+      availability: async () => 'available',
+      create: ({monitor}) => {
+        monitor({addEventListener: (_name, callback) => { progress = callback; }});
+        return new Promise(resolve => { finish = () => resolve({translate:async()=> '你好世界'}); });
+      }
+    };
+    window.eval(bundle.outputFiles[0].text);
+    await pause();
+    const host = window.document.querySelector('[data-tlm="controls"]');
+    progress({loaded:0.5});
+    assert.equal(host.hidden, false);
+    assert.match(controls.querySelector('p').textContent, /50%/);
+    if (manuallyClose) {
+      controls.querySelector('[aria-label="关闭提示"]').click();
+      assert.equal(host.hidden, true);
+      progress({loaded:0.8});
+      assert.equal(host.hidden, true);
+    }
+    progress({loaded:1});
+    assert.equal(host.hidden, true);
+    finish();
+    await pause();
+    assert.equal(window.document.querySelector('[data-tlm="translation"] span').textContent, '你好世界');
+    assert.equal(host.hidden, true);
+    dom.window.close();
+  }
+});
